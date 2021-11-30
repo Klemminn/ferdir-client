@@ -5,12 +5,7 @@ import styled from 'styled-components';
 
 import { GroupedTrip } from 'types';
 import { Colors } from 'styles';
-import {
-  dotToComma,
-  getRangeArray,
-  getTripDatesString,
-  thousandSeparator,
-} from 'utils';
+import { DateUtils, MiscUtils, TextUtils } from 'utils';
 import ExternalLink from './ExternalLink';
 
 const Container = styled.div`
@@ -20,6 +15,7 @@ const Container = styled.div`
 const ResultRow = styled(Layout.Row)`
   background-color: ${Colors.GreyBackground};
   margin: 1rem 0;
+  overflow: hidden;
   border-radius: 0.8rem;
   box-shadow: 0 3px 1px -2px rgb(0 0 0 / 20%), 0 2px 3px 0 rgb(0 0 0 / 15%),
     0 1px 6px 0 rgb(0 0 0 / 10%);
@@ -27,6 +23,7 @@ const ResultRow = styled(Layout.Row)`
 
 const ImageColumn = styled(Layout.Col)`
   padding: 0;
+  max-height: 12rem;
 `;
 
 const ContentColumn = styled(Layout.Col)`
@@ -71,13 +68,14 @@ type StarsProps = {
 
 const Stars: React.FC<StarsProps> = ({ stars }) => (
   <StarsContainer>
-    {getRangeArray(stars, 1).map((num) => (
+    {MiscUtils.getRangeArray(stars, 1).map((num) => (
       <FaStar key={num} />
     ))}
   </StarsContainer>
 );
 
 const AgencyContainer = styled(ExternalLink)`
+  height: 3rem;
   margin: 0.5rem 1rem 0.5rem 0;
 `;
 
@@ -102,15 +100,18 @@ type PriceProps = {
 
 const Price: React.FC<PriceProps> = ({ label, price, isMain }) => (
   <PriceContainer>
-    <PriceText isMain={isMain}>{`${thousandSeparator(price)}kr.`}</PriceText>
+    <PriceText isMain={isMain}>{`${TextUtils.thousandSeparator(
+      price,
+    )}kr.`}</PriceText>
     {label}
   </PriceContainer>
 );
 
-const Result: React.FC<GroupedTrip> = ({
+const Result: React.FC<GroupedTrip & { isPackage?: boolean }> = ({
+  isPackage,
   place,
   nights,
-  hotelImageSmall,
+  imageSmall,
   hotel,
   stars,
   roomDescription,
@@ -126,30 +127,34 @@ const Result: React.FC<GroupedTrip> = ({
   <ExternalLink href={url} noUnderline>
     <ResultRow>
       <ImageColumn md={3}>
-        <Images.HotelImage src={hotelImageSmall} />
+        <Images.ThumbnailImage src={imageSmall} />
       </ImageColumn>
       <ContentColumn md={6}>
         <ResultHeader>{`${place} - ${nights} nætur`}</ResultHeader>
         <ResultInfo>
           <ResultInfoLine>
-            {getTripDatesString(departureDate, returnDate)}
+            {DateUtils.getTripDatesString(departureDate, returnDate)}
           </ResultInfoLine>
-          <ExternalLink href={tripadvisorUrl}>
-            <ResultInfoLine>
-              {hotel}
-              <Stars stars={stars} />
-              <TripadvisorIcon />
-              {dotToComma(tripadvisorRating.toFixed(1))}
-            </ResultInfoLine>
-          </ExternalLink>
-          <ResultInfoLine>{roomDescription}</ResultInfoLine>
-          <ResultInfoLine>
-            {agencies.map((agency) => (
-              <AgencyContainer href={agency.url}>
-                <Images.AgencyLogo src={agency.logo} />
-              </AgencyContainer>
-            ))}
-          </ResultInfoLine>
+          {isPackage && (
+            <>
+              <ExternalLink href={tripadvisorUrl}>
+                <ResultInfoLine>
+                  {hotel}
+                  <Stars stars={stars} />
+                  <TripadvisorIcon />
+                  {TextUtils.dotToComma(tripadvisorRating.toFixed(1))}
+                </ResultInfoLine>
+              </ExternalLink>
+              <ResultInfoLine>{roomDescription}</ResultInfoLine>
+              <ResultInfoLine>
+                {agencies.map((agency) => (
+                  <AgencyContainer href={agency.url}>
+                    <Images.AgencyLogo src={agency.logo} />
+                  </AgencyContainer>
+                ))}
+              </ResultInfoLine>
+            </>
+          )}
         </ResultInfo>
       </ContentColumn>
       <PriceColumn md={3}>
@@ -164,7 +169,7 @@ type TripProps = {
   trip: GroupedTrip;
 };
 
-const Trip: React.FC<TripProps> = ({ trip }) => <Result {...trip} />;
+const Trip: React.FC<TripProps> = ({ trip }) => <Result isPackage {...trip} />;
 
 type TripsProps = {
   trips: GroupedTrip[];
@@ -172,8 +177,26 @@ type TripsProps = {
 
 export const Trips: React.FC<TripsProps> = ({ trips }) => (
   <Container>
-    {trips.map((trip, idx) => (
-      <Trip key={idx} trip={trip} />
+    {trips.map((trip) => (
+      <Trip key={trip.id} trip={trip} />
+    ))}
+  </Container>
+);
+
+type FlightProps = {
+  flight: GroupedTrip;
+};
+
+const Flight: React.FC<FlightProps> = ({ flight }) => <Result {...flight} />;
+
+type FlightsProps = {
+  flights: GroupedTrip[];
+};
+
+export const Flights: React.FC<FlightsProps> = ({ flights }) => (
+  <Container>
+    {flights.map((flight) => (
+      <Flight key={flight.id} flight={flight} />
     ))}
   </Container>
 );

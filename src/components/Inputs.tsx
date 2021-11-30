@@ -5,7 +5,7 @@ import ReactSlider from 'react-slider';
 import { Input } from 'reactstrap';
 
 import { Colors } from 'styles';
-import { getRangeArray } from 'utils';
+import { MiscUtils } from 'utils';
 
 const INPUT_HEIGHT = '2rem';
 
@@ -134,7 +134,7 @@ export const IntegerSelect: React.FC<IntegerSelectProps> = ({
   max,
   ...rest
 }) => {
-  const options = getRangeArray(max, min).map((value) => ({
+  const options = MiscUtils.getRangeArray(max, min).map((value) => ({
     label: `${value}`,
     value,
   }));

@@ -5,7 +5,7 @@ type ImageProps = {
   src: string;
 };
 
-export const HotelImage: React.FC<ImageProps> = ({ src }) => (
+export const ThumbnailImage: React.FC<ImageProps> = ({ src }) => (
   <LazyImage
     placeholder={({ ref }) => <div ref={ref} />}
     src={src}

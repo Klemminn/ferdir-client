@@ -17,6 +17,7 @@ export type Agency = {
 };
 
 export type Trip = {
+  id: number;
   adults: number;
   children: number;
   agency: Agency['code'];
@@ -25,8 +26,8 @@ export type Trip = {
   departureDate: string;
   hotel: string;
   hotelCode: number;
-  hotelImage: string;
-  hotelImageSmall: string;
+  image: string;
+  imageSmall: string;
   place: Place['name'];
   price: number;
   pricePerPerson: number;

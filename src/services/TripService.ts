@@ -25,3 +25,23 @@ export const getTrips = async (params: GetTripsParams): Promise<Trip[]> => {
   const { data } = await connector.get(`/trips/`, { params });
   return data;
 };
+
+type GetFlightsParams = {
+  adults: number;
+  children: number;
+  dateFrom: string;
+  dateTo: string;
+  nightsFrom: number;
+  nightsTo: number;
+  page: number;
+  priceFrom: number;
+  priceTo: number;
+  specificDates: 0 | 1;
+  places?: Place['code'][];
+  orderBy?: 'price' | 'stars' | 'tripadvisor';
+};
+
+export const getFlights = async (params: GetFlightsParams): Promise<Trip[]> => {
+  const { data } = await connector.get(`/flights/`, { params });
+  return data;
+};
