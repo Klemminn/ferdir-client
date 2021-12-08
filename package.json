@@ -31,8 +31,10 @@
     "typescript": "~3.7.2"
   },
   "scripts": {
-    "start": "react-scripts start",
-    "build": "react-scripts build",
+    "start": "cross-env HTTPS=true PORT=3000 REACT_APP_ENV=local react-scripts start",
+    "build": "cross-env REACT_APP_ENV=production react-scripts build",
+    "predeploy": "yarn build",
+    "deploy": "gh-pages -d build",
     "test": "react-scripts test",
     "eject": "react-scripts eject"
   },

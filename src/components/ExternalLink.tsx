@@ -4,7 +4,7 @@ import ReactGA, { OutboundLinkProps } from 'react-ga';
 
 import { Colors } from 'styles';
 
-ReactGA.initialize('UA-103950245-1', { debug: true });
+ReactGA.initialize('UA-103950245-1');
 
 const StyledTrackedLink = styled(({ noUnderline, ...props }) => (
   <ReactGA.OutboundLink {...props} />
