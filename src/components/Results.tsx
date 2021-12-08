@@ -124,7 +124,7 @@ const Result: React.FC<GroupedTrip & { isPackage?: boolean }> = ({
   agencies,
   url,
 }) => (
-  <ExternalLink href={url} noUnderline>
+  <ExternalLink to={url} noUnderline>
     <ResultRow>
       <ImageColumn md={3}>
         <Images.ThumbnailImage src={imageSmall} />
@@ -137,7 +137,7 @@ const Result: React.FC<GroupedTrip & { isPackage?: boolean }> = ({
           </ResultInfoLine>
           {isPackage && (
             <>
-              <ExternalLink href={tripadvisorUrl}>
+              <ExternalLink skipTracking to={tripadvisorUrl}>
                 <ResultInfoLine>
                   {hotel}
                   <Stars stars={stars} />
@@ -146,15 +146,15 @@ const Result: React.FC<GroupedTrip & { isPackage?: boolean }> = ({
                 </ResultInfoLine>
               </ExternalLink>
               <ResultInfoLine>{roomDescription}</ResultInfoLine>
-              <ResultInfoLine>
-                {agencies.map((agency) => (
-                  <AgencyContainer href={agency.url}>
-                    <Images.AgencyLogo src={agency.logo} />
-                  </AgencyContainer>
-                ))}
-              </ResultInfoLine>
             </>
           )}
+          <ResultInfoLine>
+            {agencies.map((agency) => (
+              <AgencyContainer to={agency.url} key={agency.agency}>
+                <Images.AgencyLogo src={agency.logo} />
+              </AgencyContainer>
+            ))}
+          </ResultInfoLine>
         </ResultInfo>
       </ContentColumn>
       <PriceColumn md={3}>
