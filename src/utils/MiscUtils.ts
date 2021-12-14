@@ -46,3 +46,13 @@ export const groupTripsByAgency = (
 
   return [...previousGrouped, ...newGrouped];
 };
+
+export const hasObjectsDifferentValues = (
+  initialObject: Object,
+  compareObject: Object,
+) =>
+  Object.keys(initialObject).some(
+    (key) =>
+      initialObject[key as keyof typeof initialObject] !==
+      compareObject[key as keyof typeof compareObject],
+  );

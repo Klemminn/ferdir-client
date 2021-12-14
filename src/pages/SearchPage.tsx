@@ -59,6 +59,7 @@ const defaultState: FlightsFilter | TripsFilter = {
   agencies: [] as Agency['code'][],
   places: [] as Place['code'][],
   specificDates: 0 as 0 | 1,
+  isPackage: true,
 };
 
 const nightOptions = MiscUtils.getRangeArray(30, 1).map((i) => ({
@@ -134,7 +135,7 @@ type RouteParams = {
 };
 
 const SearchPage = () => {
-  const [isPackage, setIsPackage] = useState(true);
+  const [isPackage, setIsPackage] = useState(defaultState.isPackage);
   const [places, setPlaces] = useState<Place[]>([]);
   const [selectedPlaceCodes, setSelectedPlaceCodes] = useState(
     defaultState.places,
@@ -235,7 +236,9 @@ const SearchPage = () => {
           minStars: defaultState.minStars,
           minTripadvisor: defaultState.minTripadvisor,
         };
-    handleUrlChange(filteredParams);
+    if (MiscUtils.hasObjectsDifferentValues(searchParams, defaultState)) {
+      handleUrlChange(filteredParams);
+    }
     return { ...filteredParams, page: updatePage(nextPage) };
   };
 
