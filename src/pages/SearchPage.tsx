@@ -244,7 +244,7 @@ const SearchPage = () => {
       setLoading(true);
     }
     const response = await TripService.getTrips(
-      searchParams ?? handleSearchParams(selectedPlaceCodes),
+      searchParams ?? handleSearchParams(selectedPlaceCodes, nextPage),
     );
     if (response.length) {
       const groupedTrips = MiscUtils.groupTripsByAgency(
@@ -272,7 +272,7 @@ const SearchPage = () => {
       setLoading(true);
     }
     const response = await TripService.getFlights(
-      searchParams ?? handleSearchParams(selectedFlightPlaceCodes),
+      searchParams ?? handleSearchParams(selectedFlightPlaceCodes, nextPage),
     );
     if (response.length) {
       const groupedFlights = MiscUtils.groupTripsByAgency(

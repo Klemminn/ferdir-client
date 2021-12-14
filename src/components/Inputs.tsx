@@ -209,9 +209,10 @@ export const Slider: React.FC<SliderProps> = ({
   const lastIndex = options.length - 1;
   const isMultiple = Array.isArray(defaultValue);
   const defaultValueIndexes = isMultiple
-    ? (defaultValue as OptionValue[]).map((dv) =>
-        options.findIndex((option) => option.value === dv),
-      )
+    ? (defaultValue as OptionValue[]).map((dv) => {
+        const index = options.findIndex((option) => option.value === dv);
+        return 0 > index ? 0 : index;
+      })
     : options.findIndex((option) => option.value === defaultValue);
   const [value, setValue] = useState<number | number[]>(defaultValueIndexes);
   const lowerLabel = (
