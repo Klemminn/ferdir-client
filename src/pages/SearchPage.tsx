@@ -1,7 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import styled from 'styled-components';
 import { FaGift, FaPlane } from 'react-icons/fa';
 import InfiniteScroll from 'react-infinite-scroll-component';
+import { useHistory, useParams } from 'react-router-dom';
 
 import {
   Buttons,
@@ -13,8 +14,13 @@ import {
   Tabs,
 } from 'components';
 import { Colors } from 'styles';
-import { Agency, Place, GroupedTrip } from 'types';
-import { AgencyService, PlaceService, TripService } from 'services';
+import { Agency, Place, GroupedTrip, TripsFilter, FlightsFilter } from 'types';
+import {
+  AgencyService,
+  FilterService,
+  PlaceService,
+  TripService,
+} from 'services';
 
 import SloganImage from 'assets/palms-w-logo.png';
 import { DateUtils, MiscUtils, TextUtils } from 'utils';
@@ -37,6 +43,23 @@ const defaultTravelPeriod = [
   monthOptions[0].value,
   monthOptions[monthOptions.length - 1].value,
 ];
+
+const defaultState: FlightsFilter | TripsFilter = {
+  adults: 2,
+  children: 0,
+  nightsFrom: 7,
+  nightsTo: 21,
+  priceFrom: 0,
+  priceTo: 500000,
+  minStars: 1,
+  minTripadvisor: 0,
+  search: '',
+  dateFrom: defaultTravelPeriod[0],
+  dateTo: defaultTravelPeriod[1],
+  agencies: [] as Agency['code'][],
+  places: [] as Place['code'][],
+  specificDates: 0 as 0 | 1,
+};
 
 const nightOptions = MiscUtils.getRangeArray(30, 1).map((i) => ({
   label: `${i}`,
@@ -106,50 +129,71 @@ const ResultHeader = styled.div`
   text-align: center;
 `;
 
+type RouteParams = {
+  filterCode: string;
+};
+
 const SearchPage = () => {
   const [isPackage, setIsPackage] = useState(true);
   const [places, setPlaces] = useState<Place[]>([]);
-  const [selectedPlaceCodes, setSelectedPlaceCodes] = useState<Place['code'][]>(
-    [],
+  const [selectedPlaceCodes, setSelectedPlaceCodes] = useState(
+    defaultState.places,
   );
+  const [isReady, setIsReady] = useState(false);
+  const pageRef = useRef(1);
   const [flightPlaces, setFlightPlaces] = useState<Place[]>([]);
-  const [selectedFlightPlaceCodes, setSelectedFlightPlaceCodes] = useState<
-    Place['code'][]
-  >([]);
+  const [selectedFlightPlaceCodes, setSelectedFlightPlaceCodes] = useState(
+    defaultState.places,
+  );
   const [agencies, setAgencies] = useState<Agency[]>([]);
-  const [selectedAgencyCodes, setSelectedAgencyCodes] = useState<
-    Agency['code'][]
-  >([]);
-  const [adults, setAdults] = useState(2);
-  const [children, setChildren] = useState(0);
-  const [nights, setNights] = useState([7, 21]);
-  const [prices, setPrices] = useState([0, 500000]);
-  const [minimumStars, setMinimumStars] = useState(1);
-  const [minimumTripadvisorRating, setMininumTripadvisorRating] = useState(0);
-  const [searchText, setSearchText] = useState('');
-  const [page, setPage] = useState(1);
-  const [dateFrom, setDateFrom] = useState(defaultTravelPeriod[0]);
-  const [dateTo, setDateTo] = useState(defaultTravelPeriod[1]);
+  const [search, setSearch] = useState(defaultState);
+
+  const setSearchProp = (prop: keyof TripsFilter, value: any) =>
+    setSearch({ ...search, [prop]: value });
   const [trips, setTrips] = useState<GroupedTrip[]>([]);
   const [flights, setFlights] = useState<GroupedTrip[]>([]);
   const [hasMoreTrips, setHasMoreTrips] = useState(false);
   const [loading, setLoading] = useState(true);
 
+  const { filterCode }: RouteParams = useParams();
+  const history = useHistory();
+
   useEffect(() => {
     const init = async () => {
       await Promise.all([getPlaces(), getAgencies()]);
-      getTrips();
+      await applyFilter();
+      setIsReady(true);
     };
     init();
     // eslint-disable-next-line
   }, []);
 
-  const handleTabChange = (value: string) => {
+  const applyFilter = async () => {
+    if (filterCode) {
+      const filter = await FilterService.getFilter(filterCode);
+      setSearch(filter);
+      if (filter.isPackage) {
+        setSelectedPlaceCodes(filter.places);
+        getTrips(false, filter);
+      } else {
+        setSelectedFlightPlaceCodes(filter.places);
+        await handleTabChange('flights', filter);
+      }
+    } else {
+      getTrips();
+    }
+  };
+
+  const handleTabChange = async (value: string, searchParams?: TripsFilter) => {
     const newIsPackage = value === 'package';
     setIsPackage(newIsPackage);
-    if (!newIsPackage && !flightPlaces.length) {
-      getFlightPlaces();
-      getFlights();
+    if (!newIsPackage) {
+      getFlights(false, searchParams);
+      if (!flightPlaces.length) {
+        await getFlightPlaces();
+      }
+    } else {
+      getTrips();
     }
   };
 
@@ -168,29 +212,40 @@ const SearchPage = () => {
     setAgencies(response);
   };
 
-  const getTrips = async (nextPage?: boolean) => {
+  const handleUrlChange = async (searchParams: TripsFilter) => {
+    const newFilterCode = await FilterService.createFilter(searchParams);
+    history.push(`/${newFilterCode}`);
+  };
+
+  const handleSearchParams = (
+    placeCodes: Place['code'][],
+    nextPage?: boolean,
+  ) => {
+    const searchParams = {
+      ...search,
+      places: placeCodes,
+      isPackage,
+    };
+    const filteredParams = isPackage
+      ? searchParams
+      : {
+          ...searchParams,
+          agencies: defaultState.agencies,
+          search: defaultState.search,
+          minStars: defaultState.minStars,
+          minTripadvisor: defaultState.minTripadvisor,
+        };
+    handleUrlChange(filteredParams);
+    return { ...filteredParams, page: updatePage(nextPage) };
+  };
+
+  const getTrips = async (nextPage?: boolean, searchParams?: TripsFilter) => {
     if (!nextPage) {
       setLoading(true);
     }
-    const currentPage = nextPage ? page + 1 : 1;
-    setPage(currentPage);
-    const response = await TripService.getTrips({
-      adults,
-      children,
-      agencies: selectedAgencyCodes,
-      dateFrom,
-      dateTo,
-      minStars: minimumStars,
-      minTripadvisor: minimumTripadvisorRating,
-      nightsFrom: nights[0],
-      nightsTo: nights[1],
-      page: currentPage,
-      places: selectedPlaceCodes,
-      priceFrom: prices[0],
-      priceTo: prices[1],
-      search: searchText,
-      specificDates: 0,
-    });
+    const response = await TripService.getTrips(
+      searchParams ?? handleSearchParams(selectedPlaceCodes),
+    );
     if (response.length) {
       const groupedTrips = MiscUtils.groupTripsByAgency(
         response,
@@ -207,25 +262,18 @@ const SearchPage = () => {
     setLoading(false);
   };
 
-  const getFlights = async (nextPage?: boolean) => {
+  const updatePage = (nextPage?: boolean) => {
+    pageRef.current = nextPage ? pageRef.current + 1 : 1;
+    return pageRef.current;
+  };
+
+  const getFlights = async (nextPage?: boolean, searchParams?: TripsFilter) => {
     if (!nextPage) {
       setLoading(true);
     }
-    const currentPage = nextPage ? page + 1 : 1;
-    setPage(currentPage);
-    const response = await TripService.getFlights({
-      adults,
-      children,
-      dateFrom,
-      dateTo,
-      nightsFrom: nights[0],
-      nightsTo: nights[1],
-      page: currentPage,
-      places: selectedFlightPlaceCodes,
-      priceFrom: prices[0],
-      priceTo: prices[1],
-      specificDates: 0,
-    });
+    const response = await TripService.getFlights(
+      searchParams ?? handleSearchParams(selectedFlightPlaceCodes),
+    );
     if (response.length) {
       const groupedFlights = MiscUtils.groupTripsByAgency(
         response,
@@ -246,6 +294,7 @@ const SearchPage = () => {
     <PageContainer>
       <Slogan>
         <Tabs
+          defaultValue={isPackage ? 'package' : 'flight'}
           tabs={[
             {
               label: (
@@ -269,172 +318,195 @@ const SearchPage = () => {
           onChange={(value) => handleTabChange(value)}
         />
       </Slogan>
-      <ContentContainer>
-        <Layout.Row>
-          <Layout.Col md={4}>
-            <Hidden shouldHide={!isPackage}>
-              <Inputs.MultiSelect
-                placeholder="Hvert sem er"
-                label="Áfangastaðir"
-                options={places.map((place) => ({
-                  label: `${place.country} - ${place.name}`,
-                  value: place.code,
-                }))}
-                onChange={(selected) =>
-                  setSelectedPlaceCodes(selected as Place['code'][])
-                }
-              />
-            </Hidden>
-            <Hidden shouldHide={isPackage}>
-              <Inputs.MultiSelect
-                placeholder="Hvert sem er"
-                label="Áfangastaðir"
-                options={flightPlaces.map((place) => ({
-                  label: `${place.country} - ${place.name}`,
-                  value: place.code,
-                }))}
-                onChange={(selected) =>
-                  setSelectedFlightPlaceCodes(selected as Place['code'][])
-                }
-              />
-            </Hidden>
-          </Layout.Col>
-          <Layout.Col md={4}>
-            <Inputs.IntegerSelect
-              label="Fullorðnir"
-              min={1}
-              max={4}
-              defaultValue={adults}
-              onChange={setAdults}
-            />
-          </Layout.Col>
-          <Layout.Col md={4}>
-            <Inputs.IntegerSelect
-              label="Börn"
-              min={0}
-              max={4}
-              defaultValue={children}
-              onChange={setChildren}
-            />
-          </Layout.Col>
-        </Layout.Row>
-        <Layout.Row>
-          <Layout.Col md={4}>
-            <Inputs.Slider
-              label="Ferðatímabil"
-              options={monthOptions}
-              defaultValue={defaultTravelPeriod}
-              onChange={(value: string[]) => {
-                setDateFrom(value[0]);
-                setDateTo(
-                  DateUtils.getIsoDate(DateUtils.getEndOfMonth(value[1])),
-                );
-              }}
-            />
-          </Layout.Col>
-          <Layout.Col md={4}>
-            <Inputs.Slider
-              label="Nætur"
-              options={nightOptions}
-              defaultValue={nights}
-              onChange={(selected) => setNights(selected as number[])}
-            />
-          </Layout.Col>
-
-          <Layout.Col md={4}>
-            <Inputs.Slider
-              label="Verð á mann"
-              options={priceOptions}
-              defaultValue={prices}
-              onChange={(selected) => setPrices(selected as number[])}
-            />
-          </Layout.Col>
-        </Layout.Row>
-        <Hidden shouldHide={!isPackage}>
+      {isReady && (
+        <ContentContainer>
           <Layout.Row>
             <Layout.Col md={4}>
-              <Inputs.MultiSelect
-                placeholder="Hver sem er"
-                label="Ferðaskrifstofur"
-                options={agencies.map((agency) => ({
-                  label: `${agency.name}`,
-                  value: agency.code,
-                }))}
-                onChange={(selected) =>
-                  setSelectedAgencyCodes(selected as Agency['code'][])
+              <Hidden shouldHide={!isPackage}>
+                <Inputs.MultiSelect
+                  placeholder="Hvert sem er"
+                  label="Áfangastaðir"
+                  defaultValue={search.places}
+                  options={places.map((place) => ({
+                    label: `${place.country} - ${place.name}`,
+                    value: place.code,
+                  }))}
+                  onChange={(selected) =>
+                    setSelectedPlaceCodes(selected as Place['code'][])
+                  }
+                />
+              </Hidden>
+              <Hidden shouldHide={isPackage}>
+                <Inputs.MultiSelect
+                  placeholder="Hvert sem er"
+                  label="Áfangastaðir"
+                  defaultValue={search.places}
+                  options={flightPlaces.map((place) => ({
+                    label: `${place.country} - ${place.name}`,
+                    value: place.code,
+                  }))}
+                  onChange={(selected) =>
+                    setSelectedFlightPlaceCodes(selected as Place['code'][])
+                  }
+                />
+              </Hidden>
+            </Layout.Col>
+            <Layout.Col md={4}>
+              <Inputs.IntegerSelect
+                label="Fullorðnir"
+                min={1}
+                max={4}
+                defaultValue={search.adults}
+                onChange={(value) => setSearchProp('adults', value)}
+              />
+            </Layout.Col>
+            <Layout.Col md={4}>
+              <Inputs.IntegerSelect
+                label="Börn"
+                min={0}
+                max={4}
+                defaultValue={search.children}
+                onChange={(value) => setSearchProp('children', value)}
+              />
+            </Layout.Col>
+          </Layout.Row>
+          <Layout.Row>
+            <Layout.Col md={4}>
+              <Inputs.Slider
+                label="Ferðatímabil"
+                options={monthOptions}
+                defaultValue={[
+                  search.dateFrom,
+                  DateUtils.getIsoDate(
+                    DateUtils.getStartOfMonth(search.dateTo),
+                  ),
+                ]}
+                onChange={(value: string[]) =>
+                  setSearch({
+                    ...search,
+                    dateFrom: value[0],
+                    dateTo: DateUtils.getIsoDate(
+                      DateUtils.getEndOfMonth(value[1]),
+                    ),
+                  })
                 }
               />
             </Layout.Col>
             <Layout.Col md={4}>
               <Inputs.Slider
-                label="Hótel stjörnur"
-                options={starOptions}
-                defaultValue={minimumStars}
-                onChange={(selected) => setMinimumStars(selected as number)}
+                label="Nætur"
+                options={nightOptions}
+                defaultValue={[search.nightsFrom, search.nightsTo]}
+                onChange={(selected: number[]) =>
+                  setSearch({
+                    ...search,
+                    nightsFrom: selected[0],
+                    nightsTo: selected[1],
+                  })
+                }
               />
             </Layout.Col>
             <Layout.Col md={4}>
               <Inputs.Slider
-                label="Tripadvisor einkunn"
-                options={tripadvisorRatingOptions}
-                defaultValue={minimumTripadvisorRating}
-                onChange={(selected) =>
-                  setMininumTripadvisorRating(selected as number)
+                label="Verð á mann"
+                options={priceOptions}
+                defaultValue={[search.priceFrom, search.priceTo]}
+                onChange={(selected: number[]) =>
+                  setSearch({
+                    ...search,
+                    priceFrom: selected[0],
+                    priceTo: selected[1],
+                  })
                 }
               />
             </Layout.Col>
           </Layout.Row>
+          <Hidden shouldHide={!isPackage}>
+            <Layout.Row>
+              <Layout.Col md={4}>
+                <Inputs.MultiSelect
+                  placeholder="Hver sem er"
+                  label="Ferðaskrifstofur"
+                  options={agencies.map((agency) => ({
+                    label: `${agency.name}`,
+                    value: agency.code,
+                  }))}
+                  defaultValue={search.agencies}
+                  onChange={(selected) => setSearchProp('agencies', selected)}
+                />
+              </Layout.Col>
+              <Layout.Col md={4}>
+                <Inputs.Slider
+                  label="Hótel stjörnur"
+                  options={starOptions}
+                  defaultValue={search.minStars}
+                  onChange={(selected) => setSearchProp('minStars', selected)}
+                />
+              </Layout.Col>
+              <Layout.Col md={4}>
+                <Inputs.Slider
+                  label="Tripadvisor einkunn"
+                  options={tripadvisorRatingOptions}
+                  defaultValue={search.minTripadvisor}
+                  onChange={(selected) =>
+                    setSearchProp('minTripadvisor', selected)
+                  }
+                />
+              </Layout.Col>
+            </Layout.Row>
+            <Layout.Row>
+              <Layout.Col md={12}>
+                <Inputs.Text
+                  label="Leit að hóteli eða herbergi"
+                  placeholder="Frjáls leit, t.d. allt innifalið, tvíbýli o.s.frv."
+                  defaultValue={search.search}
+                  onChange={(value) => setSearchProp('search', value)}
+                />
+              </Layout.Col>
+            </Layout.Row>
+          </Hidden>
           <Layout.Row>
-            <Layout.Col md={12}>
-              <Inputs.Text
-                label="Leit að hóteli eða herbergi"
-                placeholder="Frjáls leit, t.d. allt innifalið, tvíbýli o.s.frv."
-                onChange={setSearchText}
-              />
+            <Layout.Col md={3} />
+            <Layout.Col md={6}>
+              <Buttons.JumboButton
+                color="primary"
+                disabled={loading}
+                onClick={() => (isPackage ? getTrips() : getFlights())}
+              >
+                Leita
+              </Buttons.JumboButton>
             </Layout.Col>
           </Layout.Row>
-        </Hidden>
-        <Layout.Row>
-          <Layout.Col md={3} />
-          <Layout.Col md={6}>
-            <Buttons.JumboButton
-              color="primary"
-              disabled={loading}
-              onClick={() => (isPackage ? getTrips() : getFlights())}
-            >
-              Leita
-            </Buttons.JumboButton>
-          </Layout.Col>
-        </Layout.Row>
-        <ResultHeader>Lægstu verð síðustu 7 daga</ResultHeader>
-        {loading ? (
-          <Loader />
-        ) : isPackage ? (
-          !trips.length ? (
+          <ResultHeader>Lægstu verð síðustu 7 daga</ResultHeader>
+          {loading ? (
+            <Loader />
+          ) : isPackage ? (
+            !trips.length ? (
+              <ResultHeader>Engar ferðir uppfylla valin skilyrði</ResultHeader>
+            ) : (
+              <InfiniteScroll
+                dataLength={trips.length}
+                next={() => getTrips(true)}
+                hasMore={hasMoreTrips}
+                loader={<Loader />}
+              >
+                <Results.Trips trips={trips} />
+              </InfiniteScroll>
+            )
+          ) : !flights.length ? (
             <ResultHeader>Engar ferðir uppfylla valin skilyrði</ResultHeader>
           ) : (
             <InfiniteScroll
-              dataLength={trips.length}
-              next={() => getTrips(true)}
+              dataLength={flights.length}
+              next={() => getFlights(true)}
               hasMore={hasMoreTrips}
               loader={<Loader />}
             >
-              <Results.Trips trips={trips} />
+              <Results.Flights flights={flights} />
             </InfiniteScroll>
-          )
-        ) : !flights.length ? (
-          <ResultHeader>Engar ferðir uppfylla valin skilyrði</ResultHeader>
-        ) : (
-          <InfiniteScroll
-            dataLength={flights.length}
-            next={() => getFlights(true)}
-            hasMore={hasMoreTrips}
-            loader={<Loader />}
-          >
-            <Results.Flights flights={flights} />
-          </InfiniteScroll>
-        )}
-      </ContentContainer>
+          )}
+        </ContentContainer>
+      )}
     </PageContainer>
   );
 };

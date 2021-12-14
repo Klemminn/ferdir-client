@@ -26,6 +26,7 @@ const App = () => (
     <Container>
       <Router>
         <Switch>
+          <Route exact path="/:filterCode" component={SearchPage} />
           <Route exact path="/" component={SearchPage} />
           <Redirect to="/" />
         </Switch>

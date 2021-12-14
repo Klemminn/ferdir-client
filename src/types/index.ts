@@ -48,3 +48,26 @@ export type GroupedTrip = Trip & {
     url: Trip['url'];
   }[];
 };
+
+export type FlightsFilter = {
+  adults: number;
+  children: number;
+  dateFrom: string;
+  dateTo: string;
+  nightsFrom: number;
+  nightsTo: number;
+  priceFrom: number;
+  priceTo: number;
+  specificDates: 0 | 1;
+  agencies: Agency['code'][];
+  places: Place['code'][];
+  search?: string;
+  orderBy?: 'price' | 'stars' | 'tripadvisor';
+  page?: number;
+  isPackage?: boolean;
+};
+
+export type TripsFilter = FlightsFilter & {
+  minTripadvisor: number;
+  minStars: number;
+};

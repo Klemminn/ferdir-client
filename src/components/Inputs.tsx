@@ -79,7 +79,7 @@ type CommonSelectProps = {
   label?: Label;
   placeholder?: string;
   options: Option[];
-  defaultValue?: OptionValue;
+  defaultValue?: OptionValue | OptionValue[];
 };
 
 type SelectProps = CommonSelectProps & {
@@ -109,13 +109,20 @@ export const Select: React.FC<SelectProps> = ({
         )
       }
       placeholder={placeholder}
-      defaultValue={options.find((option) => option.value === defaultValue)}
+      defaultValue={
+        isMulti
+          ? (defaultValue as Option['value'][]).map((dv) =>
+              options.find((option) => option.value === dv),
+            )
+          : options.find((option) => option.value === defaultValue)
+      }
       {...rest}
     />
   </InputWrapper>
 );
 
 type MultiSelectProps = CommonSelectProps & {
+  defaultValue?: OptionValue | OptionValue[];
   onChange?(selectedValues: OptionValue[]): void;
 };
 
@@ -205,7 +212,7 @@ export const Slider: React.FC<SliderProps> = ({
     ? (defaultValue as OptionValue[]).map((dv) =>
         options.findIndex((option) => option.value === dv),
       )
-    : 0;
+    : options.findIndex((option) => option.value === defaultValue);
   const [value, setValue] = useState<number | number[]>(defaultValueIndexes);
   const lowerLabel = (
     isMultiple ? options[(value as number[])[0]] : options[value as number]

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import styled from 'styled-components';
 
 import { Nav, NavItem, NavLink } from 'reactstrap';
@@ -23,6 +23,12 @@ type TabsProps = {
 
 const Tabs: React.FC<TabsProps> = ({ tabs, defaultValue, onChange }) => {
   const [active, setActive] = useState<Value>(defaultValue ?? tabs?.[0].value);
+
+  useEffect(() => {
+    if (defaultValue) {
+      setActive(defaultValue);
+    }
+  }, [defaultValue]);
 
   const handleChange = (value: Value) => {
     if (value !== active) {

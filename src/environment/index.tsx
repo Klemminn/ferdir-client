@@ -7,7 +7,7 @@ const production: EnvParams = {
 };
 
 const local: EnvParams = {
-  api: 'http://127.0.0.1:8000/api/v1',
+  api: 'http://127.0.0.1:8000/v1',
 };
 
 const env = process.env.REACT_APP_ENV;
